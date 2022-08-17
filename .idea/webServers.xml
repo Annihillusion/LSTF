@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="WebServers">
+    <option name="servers">
+      <webServer id="335b1484-0bde-4c7e-bc2d-cf4372e076c2" name="act.buaa" url="https://vpn.act.buaa.edu.cn:8443/">
+        <fileTransfer rootFolder="/home/LAB/zhuqs" accessType="SFTP" host="192.168.5.201" port="22" sshConfigId="3e996916-314c-4855-9c96-c0e26adcb532" sshConfig="zhuqs@192.168.5.201:22 password">
+          <advancedOptions>
+            <advancedOptions dataProtectionLevel="Private" passiveMode="true" shareSSLContext="true" />
+          </advancedOptions>
+        </fileTransfer>
+      </webServer>
+    </option>
+  </component>
+</project>
