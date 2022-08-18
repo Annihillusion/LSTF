@@ -326,8 +326,7 @@ class gMLP_split(nn.Module):
             enc_value_embedding, enc_pos_embedding = enc_pos_embedding + enc_value_embedding , enc_pos_embedding + enc_value_embedding
         elif self.pos_val_type == 5:
             enc_value_embedding, enc_pos_embedding = enc_pos_embedding , enc_pos_embedding + enc_value_embedding 
-            
-        
+
         dec_value_embedding, dec_pos_embedding = self.dec_embedding(x_dec, x_mark_dec)
         enc_out_value, enc_out_pos, x_mask = nn.Sequential(*layers)((enc_value_embedding, enc_pos_embedding, x_mask))
         dec_out = self.decoder(dec_value_embedding, enc_out_value, x_p = dec_pos_embedding, cross_p = enc_out_pos, x_mask = mask_y)

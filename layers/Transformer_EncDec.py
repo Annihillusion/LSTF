@@ -24,6 +24,39 @@ class ConvLayer(nn.Module):
         return x
 
 
+class moving_avg(nn.Module):
+    """
+    Moving average block to highlight the trend of time series
+    """
+    def __init__(self, kernel_size, stride):
+        super(moving_avg, self).__init__()
+        self.kernel_size = kernel_size
+        self.avg = nn.AvgPool1d(kernel_size=kernel_size, stride=stride, padding=0)
+
+    def forward(self, x):
+        # padding on the both ends of time series
+        front = x[:, 0:1, :].repeat(1, (self.kernel_size - 1) // 2, 1)
+        end = x[:, -1:, :].repeat(1, (self.kernel_size - 1) // 2, 1)
+        x = torch.cat([front, x, end], dim=1)
+        x = self.avg(x.permute(0, 2, 1))
+        x = x.permute(0, 2, 1)
+        return x
+
+
+class series_decomp(nn.Module):
+    """
+    Series decomposition block
+    """
+    def __init__(self, kernel_size):
+        super(series_decomp, self).__init__()
+        self.moving_avg = moving_avg(kernel_size, stride=1)
+
+    def forward(self, x):
+        moving_mean = self.moving_avg(x)
+        res = x - moving_mean
+        return res, moving_mean
+
+
 class EncoderLayer(nn.Module):
     def __init__(self, attention, d_model, d_ff=None, dropout=0.1, activation="relu"):
         super(EncoderLayer, self).__init__()
@@ -80,7 +113,7 @@ class Encoder(nn.Module):
 
 class DecoderLayer(nn.Module):
     def __init__(self, self_attention, cross_attention, d_model, d_ff=None,
-                 dropout=0.1, activation="relu"):
+                 moving_avg=25, dropout=0.1, activation="relu"):
         super(DecoderLayer, self).__init__()
         d_ff = d_ff or 4 * d_model
         self.self_attention = self_attention
@@ -90,6 +123,9 @@ class DecoderLayer(nn.Module):
         self.norm1 = nn.LayerNorm(d_model)
         self.norm2 = nn.LayerNorm(d_model)
         self.norm3 = nn.LayerNorm(d_model)
+        self.decomp1 = series_decomp(moving_avg)
+        self.decomp2 = series_decomp(moving_avg)
+        self.decomp3 = series_decomp(moving_avg)
         self.dropout = nn.Dropout(dropout)
         self.activation = F.relu if activation == "relu" else F.gelu
 
@@ -138,7 +174,7 @@ class gMLPDecoder(nn.Module):
         self.norm = norm_layer
         self.split = split
 
-    def forward(self, x, cross, x_mask=None, cross_mask=None, x_p=None, cross_p= None):
+    def forward(self, x, cross, x_mask=None, cross_mask=None, x_p=None, cross_p=None):
         if self.split:
             for layer in self.layers:
                 x, x_p, x_mask = layer(x, cross, x_mask=x_mask, cross_mask=cross_mask, x_p = x_p, cross_p = cross_p)
@@ -176,7 +212,7 @@ class gMLPDecoderLayer(nn.Module):
         self.norm5 = nn.LayerNorm(d_model)
         self.norm6 = nn.LayerNorm(d_model)
 
-    def forward(self, x_v, cross_v, x_mask=None, cross_mask=None, x_p = None, cross_p = None):
+    def forward(self, x_v, cross_v, x_mask=None, cross_mask=None, x_p=None, cross_p=None):
         x_val, x_pos, x_mask = self.gMLPblock((x_v, x_p, x_mask))
         x_val = self.norm1(x_val)
         x_pos = self.norm4(x_pos)
@@ -199,6 +235,5 @@ class gMLPDecoderLayer(nn.Module):
         y = self.dropout(self.activation2(self.conv3(y.transpose(-1,1))))
         y = self.dropout(self.conv4(y).transpose(-1,1))
         x_pos = self.norm6(x+y)
-
 
         return x_val, x_pos, x_mask
